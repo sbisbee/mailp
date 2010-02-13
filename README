@@ -1,0 +1,17 @@
+mailp - Mail Ping
+=================
+
+mailp is designed to make monitoring SMTP servers simple. It sends an e-mail to
+any address you want and watches your local mbox file for its return.
+
+It is currently being developed, is very raw, and really shouldn't be used by
+anyone other than developers at the moment.
+
+TODO
+----
+ - Detect whether to use mutt_dotlock, procmail, or our own (have to write that
+   function too).
+
+ - Move e-mail config out of the main script.
+
+ - Payloads (conf.d) for when an e-mail doesn't show up.

@@ -1,6 +1,17 @@
 #!/usr/bin/perl -w
-# Created by Ben Okopnik on Thu Jan 14 21:55:46 EST 2010
-# Modified by Sam Bisbee <sbisbee@computervip.com>
+# Copyright 2010 Sam Bisbee
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
 # Takes an mbox and removes any e-mails from it that have all the provided
 # key/value pairs in their header. All rules are matched, case sensitive, and
@@ -11,7 +22,7 @@ use Mail::MboxParser;
 
 $|++;
 
-die $0 =~ /([^\/]+)$/, " <mbox> <header name> <header value> [<header name> header value> [...]]\n" if @ARGV % 2 == 0 || @ARGV < 3;
+die $0 =~ /([^\/]+)$/, " <mbox> <header name> <header value> [<header name> <header value> [...]]\n\nTakes an mbox and removes any e-mails from it that have all the provided\nkey/value pairs in their header. All rules are matched, case sensitive, and\naccept Perl regular expressions.\n\nExample, $0 ./mbox.bkp to \".*someone\@example\\\.com.*\"\n\n" if @ARGV % 2 == 0 || @ARGV < 3;
 
 my $mb = Mail::MboxParser->new($ARGV[0]);
 
@@ -21,7 +32,7 @@ while (my $msg = $mb->next_message)
 
   for(my $i = 1; defined $ARGV[$i] && defined $ARGV[$i + 1]; $i += 2)
   {
-    #Mail::MboxParser wants lower case heads only
+    #Mail::MboxParser wants lower case header keys only
     my $val = $msg->header->{lc $ARGV[$i]};
     $matches++ if defined $val && $val =~ $ARGV[$i + 1];
   }
