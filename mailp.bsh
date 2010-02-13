@@ -13,9 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from='noreply@example.com'
-to='dade@example.com'
-mbox='./mbox'
+from='noreply@computervip.com'
+to='sbisbee@computervip.com'
+mbox='/home/sbisbee/Mail/mbox'
 
 pendingFile='/tmp/mailp-pending'
 
@@ -31,13 +31,7 @@ working. Once done, this e-mail will be deleted automatically.
 --
 Your friendly mailp script" | mail -s "mailp test" --append="X-MAILP: $key" --append="From: $from" $to
 
-  if [[ $? -eq 0 ]]
-  then
-    echo "Mail sent"
-  else
-    echo "Mail was not sent successfuly"
-    exit 1
-  fi
+  [[ $? -ne 0 ]] && { echo "Mail was not sent successfuly"; exit 1; }
 
   echo "$to $key" >> "$pendingFile"
 }
@@ -47,7 +41,9 @@ processPending()
   while read email key
   do
     lockBox
-    ./deleteMessage.plx "$mbox" "x-mailp" "$key" "$email" > "$mbox.out"
+    tmpMbox=`mktemp`
+    ./deleteMessage.plx "$mbox" "x-mailp" "$key" "to" ".*$email.*" > "$tmpMbox" || { echo "Error: failed to process the mbox"; exit 1; }
+    mv "$tmpMbox" "$mbox" 
     unlockBox
     sed -i -e "/$key/d" "$pendingFile"
   done < "$pendingFile"
@@ -57,7 +53,7 @@ lockBox()
 {
   if [[ `which mutt_dotlock` ]]
   then 
-    mutt_dotlock "$mbox" || { echo "Error: couldn't get a lock on the mbox."; exit 1; }
+    mutt_dotlock "$mbox" || { echo "Error: couldn't get a lock on the mbox with mutt_dotlock."; exit 1; }
   else 
     # Doesn't look like there's a native lock system, so we use our own
     # primitive one.
