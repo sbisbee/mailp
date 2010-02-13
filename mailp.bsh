@@ -15,7 +15,7 @@
 
 from='noreply@example.com'
 to='dade@example.com'
-mbox='/home/sbisbee/Mail/mbox'
+mbox='./mbox'
 
 pendingFile='/tmp/mailp-pending'
 
@@ -55,7 +55,25 @@ processPending()
 
 lockBox()
 {
-  mutt_dotlock "$mbox" || { echo "Error: couldn't get a lock on the mbox."; exit 1; }
+  if [[ `which mutt_dotlock` ]]
+  then 
+    mutt_dotlock "$mbox" || { echo "Error: couldn't get a lock on the mbox."; exit 1; }
+  else 
+    # Doesn't look like there's a native lock system, so we use our own
+    # primitive one.
+
+    sleepTime=10 #how many seconds to wait for a lock
+
+    for (( i=0; i < sleepTime; i++ ))
+    do
+      [[ ! -f "$mbox.lock" ]] && { touch "$mbox.lock"; return; }
+      sleep 1
+    done    
+
+    #would have returned in loop on success, so we failed
+    echo "Error: couldn't get a lock on the mbox."
+    exit 1
+  fi 
 }
 
 unlockBox()
