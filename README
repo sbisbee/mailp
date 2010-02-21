@@ -9,6 +9,4 @@ anyone other than developers at the moment.
 
 TODO
 ----
- - Move e-mail config out of the main script.
-
  - Payloads (conf.d) for when an e-mail doesn't show up.
