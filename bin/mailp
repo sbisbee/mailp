@@ -36,7 +36,7 @@ processPending()
   do
     lockBox
     tmpMbox=`mktemp`
-    ./deleteMessage.plx "$mbox" "x-mailp" "$key" "to" ".*$email.*" > "$tmpMbox" || { echo "Error: failed to process the mbox"; exit 1; }
+    mailp_deleteMessage "$mbox" "x-mailp" "$key" "to" ".*$email.*" > "$tmpMbox" || { echo "Error: failed to process the mbox"; exit 1; }
     mv "$tmpMbox" "$mbox" 
     unlockBox
     sed -i -e "/$key/d" "$pendingFile"
