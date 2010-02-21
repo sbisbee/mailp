@@ -13,12 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from='noreply@computervip.com'
-to='sbisbee@computervip.com'
-mbox='/home/sbisbee/Mail/mbox'
-
-pendingFile='/tmp/mailp-pending'
-
 send()
 {
   grep "$to" "$pendingFile" > /dev/null && return
@@ -77,8 +71,31 @@ unlockBox()
   rm -f "$mbox.lock"
 }
 
+usage()
+{
+  echo "$0 -f <from email> -t <to email> -m <mbox file> [-p <pendingFile]"
+}
+
+from='';
+to='';
+mbox='';
+pendingFile='/tmp/mailp-pending'
+
+while getopts "hf:t:m:p:" options
+do
+  case "$options" in
+    f ) from="$OPTARG" ;;
+    t ) to="$OPTARG" ;;
+    m ) mbox="$OPTARG" ;;
+    p ) pendingFile="$OPTARG" ;;
+    h ) usage; exit 0 ;;
+  esac
+done
+
+[[ -z "$from" || -z "$to" || -z "$mbox" || -z "$pendingFile" ]] && { echo "Error: invalid args"; usage; exit 1; }
+
 [[ ! -f "$pendingFile" ]] && touch "$pendingFile"
-[[ ! -w "$pendingFile" ]] && { echo "Error: couldn't read pendingFile"; exit 1; }
+[[ ! -w "$pendingFile" ]] && { echo "Error: couldn't read pendingFile"; usage; exit 1; }
 
 processPending
 send
