@@ -34,11 +34,16 @@ processPending()
 {
   while read email key
   do
-    lockBox
-    tmpMbox=`mktemp`
-    mailp_deleteMessage "$mbox" "x-mailp" "$key" "to" ".*$email.*" > "$tmpMbox" || { echo "Error: failed to process the mbox"; exit 1; }
-    mv "$tmpMbox" "$mbox" 
-    unlockBox
+    if [ -z $mboxOut ]
+    then
+      mailp_deleteMessage "$mbox" "x-mailp" "$key" "to" ".*$email.*" || { echo "Error: failed to process the mbox"; exit 1; }
+    else
+      [[ ! -f $mboxOut ]] && touch $mboxOut
+      lockBox $mboxOut
+      mailp_deleteMessage "$mbox" "x-mailp" "$key" "to" ".*$email.*" > "$mboxOut" || { echo "Error: failed to process the mbox"; exit 1; }
+      unlockBox $mboxOut
+    fi
+
     sed -i -e "/$key/d" "$pendingFile"
   done < "$pendingFile"
 }
@@ -47,7 +52,7 @@ lockBox()
 {
   if [[ `which mutt_dotlock` ]]
   then 
-    mutt_dotlock "$mbox" || { echo "Error: couldn't get a lock on the mbox with mutt_dotlock."; exit 1; }
+    mutt_dotlock "$1" || { echo "Error: couldn't get a lock on $1 with mutt_dotlock."; exit 1; }
   else 
     # Doesn't look like there's a native lock system, so we use our own
     # primitive one.
@@ -56,43 +61,63 @@ lockBox()
 
     for (( i=0; i < sleepTime; i++ ))
     do
-      [[ ! -f "$mbox.lock" ]] && { touch "$mbox.lock"; return; }
+      [[ ! -f "$1.lock" ]] && { touch "$1.lock"; return; }
       sleep 1
     done    
 
     #would have returned in loop on success, so we failed
-    echo "Error: couldn't get a lock on the mbox."
+    echo "Error: couldn't get a lock on $1 with mailp's locking function."
     exit 1
   fi 
 }
 
 unlockBox()
 {
-  rm -f "$mbox.lock"
+  rm -f "$1.lock" || echo "Unable to unlock $1 - you'll have to remove the lock manually."
 }
 
 usage()
 {
-  echo "$0 -f <from email> -t <to email> -m <mbox file> [-p <pendingFile]"
+  echo -e "$0 -f <from email> -t <to email> -m <mbox file> [-o <output mbox file>] [-p <pending e-mails file>]
+
+-o\tDefaults to STDOUT.
+-p\tDefaults to /tmp/mailp-pending and holds all the e-mails that mailp is 
+  \twaiting for.
+
+WARNING: This program is still in development, so be careful when running it
+against your mbox file.  
+" 
 }
 
 from='';
 to='';
 mbox='';
+mboxOut='';
 pendingFile='/tmp/mailp-pending'
 
-while getopts "hf:t:m:p:" options
+while getopts "hf:t:m:p:o:" options
 do
   case "$options" in
     f ) from="$OPTARG" ;;
     t ) to="$OPTARG" ;;
     m ) mbox="$OPTARG" ;;
     p ) pendingFile="$OPTARG" ;;
+    o ) mboxOut="$OPTARG" ;;
     h ) usage; exit 0 ;;
+    \? ) usage; exit 1 ;;
+    * ) usage; exit 1 ;;
   esac
 done
 
 [[ -z "$from" || -z "$to" || -z "$mbox" || -z "$pendingFile" ]] && { echo "Error: invalid args"; usage; exit 1; }
+
+[[ -n "$mboxOut" && -f "$mboxOut" && ! -w "$mboxOut" ]] && { echo "Error: output mbox exists, but can't write to it."; exit 1; }
+
+if [ -n "$mboxOut" ]
+then
+  if [ ! -f "$mboxOut" ]; then touch "$mboxOut"
+  elif [ ! -w "$mboxOut" ]; then echo "Error: output mbox exists, but isn't writable."; exit 1; fi
+fi
 
 [[ ! -f "$pendingFile" ]] && touch "$pendingFile"
 [[ ! -w "$pendingFile" ]] && { echo "Error: couldn't read pendingFile"; usage; exit 1; }
