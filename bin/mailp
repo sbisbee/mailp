@@ -15,7 +15,7 @@
 
 send()
 {
-  grep "$to" "$pendingFile" > /dev/null && return
+  grep "^$to" "$pendingFile" > /dev/null && return
 
   key=`echo "$to$RANDOM" | openssl dgst -sha1`
 
@@ -27,29 +27,63 @@ Your friendly mailp script" | mail -s "mailp test" --append="X-MAILP: $key" --ap
 
   [[ $? -ne 0 ]] && { echo "Mail was not sent successfuly"; exit 1; }
 
-  echo "$to $key" >> "$pendingFile"
+  setPendingRecord $to $key 0
 }
 
 processPending()
 {
-  while read email key
+  while read email key count
   do
+    # this was faster than grep/awk combo
+    [[ "$email" != "$to" ]] && continue
+
     if [ -z $mboxOut ]
     then
-      mailp_deleteMessage "$mbox" "x-mailp" "$key" "to" ".*$email.*" || { echo "Error: failed to process the mbox"; exit 1; }
+      mailp_deleteMessage "$mbox" "x-mailp" "$key" "to" ".*$email.*"
+      res=$?
     else
-      [[ ! -f $mboxOut ]] && touch $mboxOut
       lockBox $mboxOut
-      mailp_deleteMessage "$mbox" "x-mailp" "$key" "to" ".*$email.*" > "$mboxOut" || { echo "Error: failed to process the mbox"; exit 1; }
+      mailp_deleteMessage "$mbox" "x-mailp" "$key" "to" ".*$email.*" > "$mboxOut"
+      res=$?
       unlockBox $mboxOut
     fi
 
-    sed -i -e "/$key/d" "$pendingFile"
+    if [ "$res" == "1" ]
+    then
+      # Not found.
+      ((count++))
+      setPendingRecord $email $key $count
+      [[ $count -ge $maxTries ]] && failed $email 
+    else
+      deletePendingRecord $1 $2
+    fi
   done < "$pendingFile"
+}
+
+setPendingRecord()
+{
+  #args: email key count
+
+  deletePendingRecord $1 $2
+  echo "$1 $2 $3" >> "$pendingFile"
+}
+
+deletePendingRecord()
+{
+  #args: email hash
+
+  sed -i -e "/^$1 $2/d" "$pendingFile"
+}
+
+failed()
+{
+  [[ -n "$toExecute" ]] && $toExecute
 }
 
 lockBox()
 {
+  # args: mbox
+
   if [[ `which mutt_dotlock` ]]
   then 
     mutt_dotlock "$1" || { echo "Error: couldn't get a lock on $1 with mutt_dotlock."; exit 1; }
@@ -73,16 +107,16 @@ lockBox()
 
 unlockBox()
 {
+  #args: mbox
+
   rm -f "$1.lock" || echo "Unable to unlock $1 - you'll have to remove the lock manually."
 }
 
 usage()
 {
-  echo -e "$0 -f <from email> -t <to email> -m <mbox file> [-o <output mbox file>] [-p <pending e-mails file>]
-
--o\tDefaults to STDOUT.
--p\tDefaults to /tmp/mailp-pending and holds all the e-mails that mailp is 
-  \twaiting for.
+  echo -e "$0 -f <from email> -t <to email> -m <mbox file> [-o <output mbox
+file>] [-p <pending e-mails file>] [-c <max times to try an e-mail>] [-e
+<command to run on failure>]
 
 WARNING: This program is still in development, so be careful when running it
 against your mbox file.  
@@ -94,30 +128,43 @@ to='';
 mbox='';
 mboxOut='';
 pendingFile='/tmp/mailp-pending'
+maxTries=5
+toExecute=''
 
-while getopts "hf:t:m:p:o:" options
+while getopts "hf:t:m:p:o:c:e:" options
 do
   case "$options" in
     f ) from="$OPTARG" ;;
+
     t ) to="$OPTARG" ;;
+
     m ) mbox="$OPTARG" ;;
+
     p ) pendingFile="$OPTARG" ;;
+
     o ) mboxOut="$OPTARG" ;;
+
+    c ) maxTries="$OPTARG" ;;
+
+    e ) toExecute="$OPTARG" ;;
+
     h ) usage; exit 0 ;;
+
     \? ) usage; exit 1 ;;
     * ) usage; exit 1 ;;
   esac
 done
 
-[[ -z "$from" || -z "$to" || -z "$mbox" || -z "$pendingFile" ]] && { echo "Error: invalid args"; usage; exit 1; }
-
-[[ -n "$mboxOut" && -f "$mboxOut" && ! -w "$mboxOut" ]] && { echo "Error: output mbox exists, but can't write to it."; exit 1; }
+[[ $maxTries -lt 0 ]] && { echo "Error: invalid value for maxTries (-c)."; exit 1; }
 
 if [ -n "$mboxOut" ]
 then
-  if [ ! -f "$mboxOut" ]; then touch "$mboxOut"
-  elif [ ! -w "$mboxOut" ]; then echo "Error: output mbox exists, but isn't writable."; exit 1; fi
+  [[ ! -f "$mboxOut" && -e "$mboxOut" ]] && { echo "Error: $mboxOut is not a valid mbox file."; exit 1; }
+
+  [[ ! -w "$mboxOut" ]] && { echo "Error: output mbox exists, but isn't writable."; exit 1; }
 fi
+
+[[ -z "$from" || -z "$to" || -z "$mbox" || -z "$pendingFile" ]] && { echo "Error: invalid args"; usage; exit 1; }
 
 [[ ! -f "$pendingFile" ]] && touch "$pendingFile"
 [[ ! -w "$pendingFile" ]] && { echo "Error: couldn't read pendingFile"; usage; exit 1; }

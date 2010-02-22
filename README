@@ -27,6 +27,14 @@ Optional:
         Specify a file where mailp can store information about the e-mails it's
         looking for. Must be a writable flat file.
 
+-c      (Default: 5)
+        The number of times to check if the e-mail exists in the mbox before
+        considering it a failure.
+
+-e      (Default: [nothing])
+        If the max number of tries for an e-mail is reached, then the command
+        specified by this arg is run.
+
 Performance
 -----------
 
@@ -34,7 +42,7 @@ mailp performs best when the mbox file is smaller because it currently iterates
 over every e-mail in it. You can make sure that this happens by having your
 mail client filter any mailp e-mail into its own mbox file. This is easily done
 by checking who the e-mail came from (ex., mailp@example.com) or checking for
-the existence of the X-Mailp header.
+the existence of the X-MAILP header.
 
 How It Works
 ------------
@@ -42,12 +50,15 @@ How It Works
 This is the general flow of how mailp works internally.
 
 1. mailp checks the pending e-mail file (-p option) to see if any test e-mails
-have arrived in the target mbox. If they have, then it removes the e-mail from
-the mbox and the entry in the pending e-mail file.
+have arrived in the target mbox (-m option) for the specified e-mail (-t
+option). If they have, then it removes the e-mail from the mbox and the entry
+in the pending e-mail file. If an e-mail in the pending file hasn't arrived,
+then the tries counter for that entry is incremented - if the count reaches the
+max number of tries (-c option), then the specified command is run (-e option).
 
 2. If mailp doesn't have an entry in the pending e-mail file for the given
 e-mail address (-t option), then it sends the test e-mail to that address with
-a hash in the X-Mailp header. mailp then stores the e-mail address and hash in
+a hash in the X-MAILP header. mailp then stores the e-mail address and hash in
 the pending e-mail file for when it's called next.
 
 TODO
