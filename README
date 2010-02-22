@@ -1,12 +1,57 @@
 mailp - Mail Ping
 =================
 
-mailp is designed to make monitoring SMTP servers simple. It sends an e-mail to
-any address you want and watches your local mbox file for its return.
+mailp is designed to make monitoring e-mail servers simple. It sends an e-mail
+to any address you want and watches your local mbox file for its return.
 
 It is currently being developed, is very raw, and really shouldn't be used by
 anyone other than developers at the moment.
 
+Arguments
+---------
+
+Required:
+-t      An e-mail address to send the test e-mail to (ex., admin@example.com).
+
+-f      Who to send the test e-mail from (ex., noreply@example.com).
+
+-m      The mbox file to check (ex., ~/Mail/mbox).
+
+Optional:
+-o      (Default: STDOUT)
+        Output the resulting mbox into the specified mbox. The target file will
+        be locked while mailp scans the mbox. Be careful when using your live
+        mbox file.
+
+-p      (Default: /tmp/mailp-pending)
+        Specify a file where mailp can store information about the e-mails it's
+        looking for. Must be a writable flat file.
+
+Performance
+-----------
+
+mailp performs best when the mbox file is smaller because it currently iterates
+over every e-mail in it. You can make sure that this happens by having your
+mail client filter any mailp e-mail into its own mbox file. This is easily done
+by checking who the e-mail came from (ex., mailp@example.com) or checking for
+the existence of the X-Mailp header.
+
+How It Works
+------------
+
+This is the general flow of how mailp works internally.
+
+1. mailp checks the pending e-mail file (-p option) to see if any test e-mails
+have arrived in the target mbox. If they have, then it removes the e-mail from
+the mbox and the entry in the pending e-mail file.
+
+2. If mailp doesn't have an entry in the pending e-mail file for the given
+e-mail address (-t option), then it sends the test e-mail to that address with
+a hash in the X-Mailp header. mailp then stores the e-mail address and hash in
+the pending e-mail file for when it's called next.
+
 TODO
 ----
- - Payloads (conf.d) for when an e-mail doesn't show up.
+ - Payloads (conf.d) for when an e-mail doesn't show up after a given number of
+   tries.
+
