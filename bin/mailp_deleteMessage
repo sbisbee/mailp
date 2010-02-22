@@ -16,6 +16,9 @@
 # Takes an mbox and removes any e-mails from it that have all the provided
 # key/value pairs in their header. All rules are matched, case sensitive, and
 # accept Perl regular expressions.
+#
+# Exists with success if it deleted at least one e-mail, else exists with
+# failure.
 
 use strict;
 use Mail::MboxParser;
@@ -25,6 +28,7 @@ $|++;
 die $0 =~ /([^\/]+)$/, " <mbox> <header name> <header value> [<header name> <header value> [...]]\n\nTakes an mbox and removes any e-mails from it that have all the provided\nkey/value pairs in their header. All rules are matched, case sensitive, and\naccept Perl regular expressions.\n\nExample, $0 ./mbox.bkp to \".*someone\@example\\\.com.*\"\n\n" if @ARGV % 2 == 0 || @ARGV < 3;
 
 my $mb = Mail::MboxParser->new($ARGV[0]);
+my $found = 0;
 
 while (my $msg = $mb->next_message) 
 {
@@ -37,5 +41,8 @@ while (my $msg = $mb->next_message)
     $matches++ if defined $val && $val =~ $ARGV[$i + 1];
   }
 
-  print "$msg\n\n" unless $matches == (@ARGV - 1) / 2;
+  if($matches == (@ARGV - 1) / 2) { $found++; }
+  else { print "$msg\n\n"; }
 }
+
+exit 1 unless $found > 0;
